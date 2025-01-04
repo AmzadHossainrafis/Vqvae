@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torchinfo import summary
+
 
 
 class Encoder(nn.Module):
