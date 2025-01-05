@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchinfo import summary 
+
+
 
 class Quantizer(nn.Module):
     def __init__(self, config) -> None:
@@ -27,10 +28,9 @@ class Quantizer(nn.Module):
             B, H, W, C
         )
 
-
         comitment_loss = F.mse_loss(quantized.detach(), x)
         codebooke_loss = F.mse_loss(quantized, x.detach())
-    
+
         quantizer_loss = beta * comitment_loss + codebooke_loss
 
         quantized = x + (min_index - x).detach()
@@ -43,5 +43,3 @@ class Quantizer(nn.Module):
             quantizer_loss,
             min_index,
         )
-
-
