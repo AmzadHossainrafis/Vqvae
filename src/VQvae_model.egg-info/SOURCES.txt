@@ -1,0 +1,16 @@
+LICENSE
+README.md
+setup.py
+src/VQvae/__init__.py
+src/VQvae/components/__init__.py
+src/VQvae/components/models.py
+src/VQvae/components/quantizer.py
+src/VQvae/components/trainer.py
+src/VQvae/components/utils.py
+src/VQvae/pipeline/__init__.py
+src/VQvae/pipeline/train_pipeline.py
+src/VQvae/utils/__init__.py
+src/VQvae_model.egg-info/PKG-INFO
+src/VQvae_model.egg-info/SOURCES.txt
+src/VQvae_model.egg-info/dependency_links.txt
+src/VQvae_model.egg-info/top_level.txt
