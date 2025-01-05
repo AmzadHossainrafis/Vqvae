@@ -1,8 +1,21 @@
 import torch
 import torch.nn as nn
 
-
 class Encoder(nn.Module):
+    """
+    Encoder class for Vector Quantized Variational Autoencoder (VQ-VAE).
+
+    Args:
+        config (dict): Configuration dictionary containing:
+            - in_channels (list): List of input channels for each convolutional layer.
+            - kernel_size (list): List of kernel sizes for each convolutional layer.
+            - kernel_strides (list): List of strides for each convolutional layer.
+            - latent_dim (int): Dimension of the latent space.
+
+    Attributes:
+        encoder_block (nn.ModuleList): List of convolutional layers forming the encoder.
+        latent_dim (int): Dimension of the latent space.
+    """
     def __init__(self, config) -> None:
         super(Encoder, self).__init__()
         self.config = config
@@ -16,37 +29,47 @@ class Encoder(nn.Module):
                         out_channels=config["in_channels"][i + 1],
                         kernel_size=config["kernel_size"][i],
                         stride=config["kernel_strides"][i],
-                        padding=1,
                     ),
-                    nn.BatchNorm2d(num_features=config["in_channels"][i + 1]),
-                    nn.LeakyReLU(),
+                    nn.BatchNorm2d(config["in_channels"][i + 1]),
+                    nn.ReLU()
                 )
-                for i in range(config["convbn_blocks"] - 1)
+                for i in range(len(config["kernel_size"]))
             ]
         )
 
-        self.encoder_block.append(
-            nn.Conv2d(
-                in_channels=config["in_channels"][-1],
-                out_channels=config["in_channels"][-1],
-                kernel_size=config["kernel_size"][-2],
-                stride=config["kernel_strides"][-2],
-                padding=1,
-            )
-        )
+    def forward(self, x):
+        """
+        Forward pass through the encoder.
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = x
-        for block in self.encoder_block:
-            out = block(out)
-        return out
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, channels, height, width).
+
+        Returns:
+            torch.Tensor: Encoded tensor.
+        """
+        for layer in self.encoder_block:
+            x = layer(x)
+        return x
 
 
 class Decoder(nn.Module):
+    """
+    Decoder class for Vector Quantized Variational Autoencoder (VQ-VAE).
+
+    Args:
+        config (dict): Configuration dictionary containing:
+            - transposebn_channels (list): List of input channels for each transposed convolutional layer.
+            - transpose_kernel_size (list): List of kernel sizes for each transposed convolutional layer.
+            - transpose_kernel_strides (list): List of strides for each transposed convolutional layer.
+            - latent_dim (int): Dimension of the latent space.
+
+    Attributes:
+        decoder_block (nn.ModuleList): List of transposed convolutional layers forming the decoder.
+        latent_dim (int): Dimension of the latent space.
+    """
     def __init__(self, config) -> None:
         super(Decoder, self).__init__()
         self.config = config
-
         self.latent_dim = config["latent_dim"]
 
         self.decoder_block = nn.ModuleList(
@@ -56,35 +79,28 @@ class Decoder(nn.Module):
                         in_channels=config["transposebn_channels"][i],
                         out_channels=config["transposebn_channels"][i + 1],
                         kernel_size=config["transpose_kernel_size"][i],
-                        stride=config["transpose_kernel_size"][i],
-                        padding=0,
+                        stride=config["transpose_kernel_strides"][i],
                     ),
-                    nn.BatchNorm2d(num_features=config["transposebn_channels"][i + 1]),
-                    nn.LeakyReLU(),
+                    nn.BatchNorm2d(config["transposebn_channels"][i + 1]),
+                    nn.ReLU()
                 )
-                for i in range(config["transpose_bn_blocks"] - 1)
+                for i in range(len(config["transpose_kernel_size"]))
             ]
         )
 
-        self.decoder_block.append(
-            nn.Sequential(
-                nn.Conv2d(
-                    config["transposebn_channels"][-2],
-                    config["transposebn_channels"][-1],
-                    kernel_size=1,
-                    stride=1,
-                    padding=0,
-                ),
-                nn.Tanh(),
-            )
-        )
+    def forward(self, x):
+        """
+        Forward pass through the decoder.
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = x
-        for block in self.decoder_block:
-            out = block(out)
-        return out
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, channels, height, width).
 
+        Returns:
+            torch.Tensor: Decoded tensor.
+        """
+        for layer in self.decoder_block:
+            x = layer(x)
+        return x
 
 from quantizer import Quantizer
 
@@ -128,32 +144,41 @@ class VQvae(nn.Module):
 
 
 # if __name__ =="__main__":
-#     config = {
-#         'in_channels': [3, 16, 32, 8, 8] ,
-#         'kernel_size': [3,3,3,2],
-#         'kernel_strides': [2, 2, 1, 1],
-#         'convbn_blocks': 4,
-#         'latent_dim': 8,
-#         'transposebn_channels': [8, 8, 32, 16, 3],
-#         'transpose_kernel_size': [1,2,2,2],
-#         'transpose_kernel_strides': [1,2,1,1],
-#         'transpose_bn_blocks': 4
-#     }
+    from torchinfo import summary
+    # config = {
+    #     'in_channels': [3, 16, 32, 8, 8] ,
+    #     'kernel_size': [3,3,3,2],
+    #     'kernel_strides': [2, 2, 1, 1],
+    #     'convbn_blocks': 4,
+    #     'latent_dim': 8,
+    #     'transposebn_channels': [8, 8, 32, 16, 3],
+    #     'transpose_kernel_size': [1,2,2,2],
+    #     'transpose_kernel_strides': [1,2,1,1],
+    #     'transpose_bn_blocks': 4
+    # }
 
-#     # config = {
-#     #     'in_channels': [3, 16, 32, 8, 8] ,
-#     #     'kernel_size': [3,3,3,2],
-#     #     'kernel_strides': [2, 2, 1, 1],
-#     #     'convbn_blocks': 4,
-#     #     'latent_dim': 8,
-#     #     'transposebn_channels': [8, 8, 32, 16, 3],
-#     #     'transpose_kernel_size': [2,3,3,3],
-#     #     'transpose_kernel_strides': [1,1,2,2],
-#     #     'transpose_bn_blocks': 4
-#     # }
+    config = {
+        'in_channels': [3, 16, 32, 8, 8] ,
+        'kernel_size': [3,3,3,2],
+        'kernel_strides': [2, 2, 1, 1],
+        'convbn_blocks': 4,
+        'latent_dim': 8,
+        'transposebn_channels': [8, 8, 32, 16, 3],
+        'transpose_kernel_size': [2,3,3,3],
+        'transpose_kernel_strides': [1,1,2,2],
+        'transpose_bn_blocks': 4,
+        "num_embeddings": 512,
+        "embedding_dim": 8 #do not change this
+    }
 
-
-#     encoder = Encoder(config).to('cuda')
-#     decoder = Decoder(config).to('cuda')
-#     summary(encoder, input_size=(1, 3, 128, 128))
-#     summary(decoder, input_size=(1, 8, 32, 32))
+    random_batch = torch.rand(1, 3, 32, 32).to('cuda')
+    encoder = Encoder(config).to('cuda')
+    decoder = Decoder(config).to('cuda')
+    quantizer = Quantizer(config).to('cuda')
+    out = encoder(random_batch)
+    print(f"shape of encoder output: {out.shape}")
+    output, cookbook, quaint_ind, min = quantizer(out)
+    print(f"shape of output: {output.shape}")
+    de_out = decoder(min)
+    print(f"shape of decoder output: {de_out.shape}")
+  
