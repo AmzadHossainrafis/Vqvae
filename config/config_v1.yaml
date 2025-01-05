@@ -1,0 +1,23 @@
+train_params:
+  save_training_image: true
+  reconstruction_loss_weight: 1.0
+  codebook_loss_weight: 1.0
+  commitment_loss_weight: 1.0
+
+quantizer_params:
+  num_embeddings: 512
+  embedding_dim: 64
+
+
+in_channels: [3, 16, 32, 8, 8]
+kernel_size: [3, 3, 3, 2]
+kernel_strides: [2, 2, 1, 1]
+convbn_blocks: 4
+latent_dim: 8
+num_embeddings: 5
+embedding_dim: 3
+transposebn_channels: [8, 8, 32, 16, 3]
+transpose_kernel_size: [2, 3, 3, 3]
+transpose_kernel_strides: [1, 1, 2, 2]
+transpose_bn_blocks: 4
+
