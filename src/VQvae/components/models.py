@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 
 
-
 class Encoder(nn.Module):
     def __init__(self, config) -> None:
         super(Encoder, self).__init__()
@@ -85,6 +84,8 @@ class Decoder(nn.Module):
         for block in self.decoder_block:
             out = block(out)
         return out
+
+
 from quantizer import Quantizer
 
 
@@ -101,7 +102,7 @@ class VQvae(nn.Module):
             padding=1,
         )
         self.quantizer = Quantizer(config)
-      
+
         self.post_quantization_conv = nn.Conv2d(
             in_channels=config["latent_dim"],
             out_channels=config["in_channels"][-1],
@@ -119,11 +120,12 @@ class VQvae(nn.Module):
         x = self.decoder(x)
         out = self.post_quantization_conv(x)
         return {
-            'generated_image' : out,
-            'quantized_output' : quant_output,
-            'quantized_losses' : quant_loss,
-            'quantized_indices' : quant_idxs
+            "generated_image": out,
+            "quantized_output": quant_output,
+            "quantized_losses": quant_loss,
+            "quantized_indices": quant_idxs,
         }
+
 
 # if __name__ =="__main__":
 #     config = {
