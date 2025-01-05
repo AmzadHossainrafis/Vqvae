@@ -11,7 +11,7 @@ def get_requirements():
 
 __version__ = "0.0.0"
 
-REPO_NAME = "VQvae_model"
+REPO_NAME = "VQvae"
 AUTHOR_USER_NAME = "Amzad hossain"
 SRC_REPO = "VQvae_model"
 AUTHOR_EMAIL = "amzad.rafi@northsouth.edu"
