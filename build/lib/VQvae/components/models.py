@@ -148,8 +148,8 @@ class VQvae(nn.Module):
         # out = self.post_quantization_conv(x)
         return {
             "generated_image": out,
-            "quantized_output": quant_loss['comitment_loss'],
-            "quantized_losses": quant_loss['cookbook_loss'],
+            "comitment_loss": quant_loss['comitment_loss'],
+            "cookbook_loss": quant_loss['cookbook_loss'],
             "quantized_indices": quant_idxs,
             "min_index": min
         }
