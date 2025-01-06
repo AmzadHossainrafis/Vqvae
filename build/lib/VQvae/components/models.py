@@ -1,8 +1,20 @@
 import torch
 import torch.nn as nn
-
+from quantizer import Quantizer
 
 class Encoder(nn.Module):
+    '''
+    Args:
+        config (dict): Configuration dictionary containing:
+            - in_channels (list): List of input channels for each convolutional layer.
+            - kernel_size (list): List of kernel sizes for each convolutional layer.
+            - kernel_strides (list): List of strides for each convolutional layer.
+            - latent_dim (int): Dimension of the latent space.
+
+    Attributes:
+        encoder_block (nn.ModuleList): List of convolutional layers forming the encoder.
+        latent_dim (int): Dimension of the latent space.
+    '''
     def __init__(self, config) -> None:
         super(Encoder, self).__init__()
         self.config = config
@@ -36,6 +48,15 @@ class Encoder(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the encoder.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, channels, height, width).
+
+        Returns:
+            torch.Tensor: Encoded tensor.
+        """
         out = x
         for block in self.encoder_block:
             out = block(out)
@@ -43,6 +64,20 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
+    """
+    Decoder class for Vector Quantized Variational Autoencoder (VQ-VAE).
+
+    Args:
+        config (dict): Configuration dictionary containing:
+            - transposebn_channels (list): List of input channels for each transposed convolutional layer.
+            - transpose_kernel_size (list): List of kernel sizes for each transposed convolutional layer.
+            - transpose_kernel_strides (list): List of strides for each transposed convolutional layer.
+            - latent_dim (int): Dimension of the latent space.
+
+    Attributes:
+        decoder_block (nn.ModuleList): List of transposed convolutional layers forming the decoder.
+        latent_dim (int): Dimension of the latent space.
+    """
     def __init__(self, config) -> None:
         super(Decoder, self).__init__()
         self.config = config
@@ -80,13 +115,21 @@ class Decoder(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the decoder.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, channels, height, width).
+
+        Returns:
+            torch.Tensor: Decoded tensor.
+        """
         out = x
         for block in self.decoder_block:
             out = block(out)
         return out
 
 
-from quantizer import Quantizer
 
 
 class VQvae(nn.Module):
@@ -95,65 +138,20 @@ class VQvae(nn.Module):
         self.config = config
 
         self.encoder = Encoder(config)
-        pre_quantization_conv = nn.Conv2d(
-            in_channels=config["in_channels"][-1],
-            out_channels=config["latent_dim"],
-            kernel_size=1,
-            padding=1,
-        )
         self.quantizer = Quantizer(config)
-
-        self.post_quantization_conv = nn.Conv2d(
-            in_channels=config["latent_dim"],
-            out_channels=config["in_channels"][-1],
-            kernel_size=1,
-            padding=1,
-        )
-
         self.decoder = Decoder(config)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.encoder(x)
-        x = self.pre_quantization_conv(x)
-        quant_output, quant_loss, quant_idxs = self.quantizer(x)
-        x = self.post_quantization_conv(quant_output)
-        x = self.decoder(x)
-        out = self.post_quantization_conv(x)
+        quant_output, quant_loss, quant_idxs , min = self.quantizer(x)
+        out = self.decoder(quant_output)
+        # out = self.post_quantization_conv(x)
         return {
             "generated_image": out,
-            "quantized_output": quant_output,
-            "quantized_losses": quant_loss,
+            "quantized_output": quant_loss['comitment_loss'],
+            "quantized_losses": quant_loss['cookbook_loss'],
             "quantized_indices": quant_idxs,
+            "min_index": min
         }
 
 
-# if __name__ =="__main__":
-#     config = {
-#         'in_channels': [3, 16, 32, 8, 8] ,
-#         'kernel_size': [3,3,3,2],
-#         'kernel_strides': [2, 2, 1, 1],
-#         'convbn_blocks': 4,
-#         'latent_dim': 8,
-#         'transposebn_channels': [8, 8, 32, 16, 3],
-#         'transpose_kernel_size': [1,2,2,2],
-#         'transpose_kernel_strides': [1,2,1,1],
-#         'transpose_bn_blocks': 4
-#     }
-
-#     # config = {
-#     #     'in_channels': [3, 16, 32, 8, 8] ,
-#     #     'kernel_size': [3,3,3,2],
-#     #     'kernel_strides': [2, 2, 1, 1],
-#     #     'convbn_blocks': 4,
-#     #     'latent_dim': 8,
-#     #     'transposebn_channels': [8, 8, 32, 16, 3],
-#     #     'transpose_kernel_size': [2,3,3,3],
-#     #     'transpose_kernel_strides': [1,1,2,2],
-#     #     'transpose_bn_blocks': 4
-#     # }
-
-
-#     encoder = Encoder(config).to('cuda')
-#     decoder = Decoder(config).to('cuda')
-#     summary(encoder, input_size=(1, 3, 128, 128))
-#     summary(decoder, input_size=(1, 8, 32, 32))

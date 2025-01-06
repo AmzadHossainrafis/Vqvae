@@ -46,9 +46,9 @@ class Quantizer(nn.Module):
         x = x.view(B, -1, C)
         beta = 0.2
         dis = torch.cdist(x, self.embedding.weight[None:].repeat(B, 1, 1))
-      
+
         z = torch.argmin(dis, dim=-1)
-        print(f"shape of min_dist: {z.shape}")
+
         min_index = torch.index_select(self.embedding.weight, 0, z.view(-1)).view(
             B, H, W, C
         )
@@ -69,16 +69,28 @@ class Quantizer(nn.Module):
         )
 
 
+
+#remark : this config working fine with the model 
 # if __name__ == "__main__":
-#     random_input = torch.rand(1, 3, 32, 32)
+#     from models import Encoder, Decoder , VQvae
 #     config = {
+#         'in_channels': [3, 16, 32, 8, 8] ,
+#         'kernel_size': [3,3,3,2],
+#         'kernel_strides': [2, 2, 1, 1],
+#         'convbn_blocks': 4,
+#         'latent_dim': 8,
+#         'transposebn_channels': [8, 8, 32, 16, 3],
+#         'transpose_kernel_size': [2,3,3,3],
+#         'transpose_kernel_strides': [1,1,2,2],
+#         'transpose_bn_blocks': 4,
 #         "num_embeddings": 512,
-#         "embedding_dim": 3,
+#         "embedding_dim": 8,
+#         "commitment_cost": 0.25,
 #     }
-#     quantizer = Quantizer(config)
-#     output, cookbook, quaint_ind, min = quantizer(random_input)
-#     print(f"shape of output: {output.shape}")
-#     print(f"shape of cookbook: {cookbook['cookbook_loss']}")
-#     print(f"shape of comitment loss : {cookbook['comitment_loss']}")
-#     print(f"shape of quaint_ind: {quaint_ind}")
-#     print(f"shape of min: {min.size()}")
+
+#     x = torch.randn(1, 3, 32, 32)
+#     model = VQvae(config)
+#     out = model(x) 
+#     print(out['decoder_output'].shape)
+          
+          

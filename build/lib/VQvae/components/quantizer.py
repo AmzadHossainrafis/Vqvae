@@ -3,8 +3,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-
 class Quantizer(nn.Module):
+    """
+    Quantizer class for Vector Quantized Variational Autoencoder (VQ-VAE).
+
+    Args:
+        config (dict): Configuration dictionary containing:
+            - num_embeddings (int): Number of embeddings in the codebook.
+            - embedding_dim (int): Dimension of each embedding vector.
+            - commitment_cost (float): Weight for the commitment loss term.
+
+    Attributes:
+        embeddings (nn.Embedding): Embedding layer representing the codebook.
+    """
+
     def __init__(self, config) -> None:
         super(Quantizer, self).__init__()
         self.config = config
@@ -18,21 +30,31 @@ class Quantizer(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the quantizer.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, channels, height, width).
+
+        Returns:
+            quantized (torch.Tensor): Quantized tensor.
+            loss (torch.Tensor): Quantization loss.
+            encoding_indices (torch.Tensor): Indices of the closest embeddings.
+        """
         B, C, H, W = x.shape
-        x = x.permute(0, 2, 3, 1).contiguous()
+        x = x.permute(0, 2, 3, 1)
         x = x.view(B, -1, C)
         beta = 0.2
         dis = torch.cdist(x, self.embedding.weight[None:].repeat(B, 1, 1))
+      
         z = torch.argmin(dis, dim=-1)
-        print(f"shape of z: {z.shape}")
+        print(f"shape of min_dist: {z.shape}")
         min_index = torch.index_select(self.embedding.weight, 0, z.view(-1)).view(
             B, H, W, C
         )
-        print(f"shape of min_index: {min_index.shape}")
-
-        comitment_loss = F.mse_loss(min_index.detach(), x)
-        codebooke_loss = F.mse_loss(min_index, x.detach())
-
+        x = x.view(B, min_index.size(1), min_index.size(2), min_index.size(3))
+        comitment_loss = torch.mean((x - min_index.detach()) ** 2)
+        codebooke_loss = torch.mean((x.detach() - min_index) ** 2)
         quantizer_loss = beta * comitment_loss + codebooke_loss
 
         quantized = x + (min_index - x).detach()
@@ -45,3 +67,18 @@ class Quantizer(nn.Module):
             quantizer_loss,
             min_index,
         )
+
+
+# if __name__ == "__main__":
+#     random_input = torch.rand(1, 3, 32, 32)
+#     config = {
+#         "num_embeddings": 512,
+#         "embedding_dim": 3,
+#     }
+#     quantizer = Quantizer(config)
+#     output, cookbook, quaint_ind, min = quantizer(random_input)
+#     print(f"shape of output: {output.shape}")
+#     print(f"shape of cookbook: {cookbook['cookbook_loss']}")
+#     print(f"shape of comitment loss : {cookbook['comitment_loss']}")
+#     print(f"shape of quaint_ind: {quaint_ind}")
+#     print(f"shape of min: {min.size()}")
