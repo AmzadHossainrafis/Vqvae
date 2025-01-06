@@ -120,20 +120,18 @@ class VQvae(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.encoder(x)
-        quant_output ,c,v,b = self.quantizer(x)
+        quant_output, c, v, b = self.quantizer(x)
         out = self.decoder(x)
-     
+
         return {
-            
             "decoder_output": out,
             "cookbook": c["cookbook_loss"],
             "comitment": c["comitment_loss"],
             "quantizer_loss": v,
-            "min_index": b
+            "min_index": b,
         }
 
     # if __name__ =="__main__":
-  
 
     # config = {
     #     'in_channels': [3, 16, 32, 8, 8] ,
