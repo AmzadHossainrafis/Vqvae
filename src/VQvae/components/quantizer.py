@@ -69,8 +69,7 @@ class Quantizer(nn.Module):
         )
 
 
-
-#remark : this config working fine with the model 
+# remark : this config working fine with the model
 # if __name__ == "__main__":
 #     from models import Encoder, Decoder , VQvae
 #     config = {
@@ -90,7 +89,5 @@ class Quantizer(nn.Module):
 
 #     x = torch.randn(1, 3, 32, 32)
 #     model = VQvae(config)
-#     out = model(x) 
+#     out = model(x)
 #     print(out['decoder_output'].shape)
-          
-          
