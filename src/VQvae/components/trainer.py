@@ -77,7 +77,7 @@ class Trainer:
                 torchvision.utils.make_grid(output["decoder_output"]).permute(1, 2, 0)
                 torchvision.utils.save_image(
                     output["decoder_output"],
-                    f"output_epoch_{epoch}.png",
+                    f"fig/output_epoch_{epoch}.png",
                     normalize=True,
                     
                 )
