@@ -10,7 +10,7 @@ Dataset_dir: str = r"/home/amzad/Desktop/Vqvae/dataset/"
 
 transform = torchvision.transforms.Compose(
     [
-        torchvision.transforms.Resize((32, 32)),
+        torchvision.transforms.Resize((31, 31)),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
@@ -25,108 +25,99 @@ train_loader = torch.utils.data.DataLoader(
 
 
 class Trainer:
-    def __init__(self, config, model, optimizer, train_loader):
+    def __init__(self, config, model, train_loader):
         self.config = config
         self.model = model
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
         self.criterion = {"l1": torch.nn.L1Loss(), "l2": torch.nn.MSELoss()}.get(
-            config["train_params"]["crit"]
+            config["crit"]
         )
 
         self.train_loader = train_loader
         self.sheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, patience=3, verbose=True
+            self.optimizer, patience=3, verbose=True
         )
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def trainner(self):
-        recon_losses = []
-        codebook_losses = []
-        commitment_losses = []
-        losses = []
+        commitment_loss = []
+        cookbook_loss = []
+        recon = []
 
         for epoch in range(self.config["epochs"]):
-            count = 0
-            # pbar = tqdm(enumerate(self.train_loader), total=len(self.train_loader))
-            for im, _ in tqdm(train_loader):
-                im = im.float().to(self.device)
+            self.model.train()
+            for i, (images, _) in enumerate(tqdm.tqdm(self.train_loader)):
+                images = images.to(self.device)
                 self.optimizer.zero_grad()
-                model_output = self.model(im)
-                output = model_output["generated_image"]
-                quantize_losses = model_output["quantized_losses"]
-
-                if self.config["train_params"]["save_training_image"]:
-                    torchvision.utils.save_image(
-                        output,
-                        f"../training_images/{count}.png",
-                        normalize=True,
-                        nrow=8,
-                        range=(-1, 1),
-                    )
-                    count += 1
-
-                recon_loss = self.crtierion(output, im)
+                output = self.model(images)
+            
+                recon_loss = self.criterion(output["decoder_output"], images)
                 loss = (
-                    self.config["train_params"]["reconstruction_loss_weight"]
-                    * recon_loss
-                    + self.config["train_params"]["codebook_loss_weight"]
-                    * quantize_losses["codebook_loss"]
-                    + self.config["train_params"]["commitment_loss_weight"]
-                    * quantize_losses["commitment_loss"]
+                    self.config["recon_weight"] * recon_loss
+                    + self.config["cookbook_wight"] * output["cookbook"]
+                    + self.config["commitment_weight"]*output["comitment"]
                 )
+
+                commitment_loss.append(output["comitment"].item())
+                cookbook_loss.append(output["cookbook"].item())
+                recon.append(recon_loss.item())
+                
+                #
+
+
 
                 loss.backward()
                 self.optimizer.step()
-                recon_losses.append(recon_loss.item())
-                codebook_losses.append(quantize_losses["codebook_loss"].item())
-                commitment_losses.append(quantize_losses["commitment_loss"].item())
-                losses.append(loss.item())
-                print(
-                    f"Epoch: {epoch+1}, Recon Loss: {recon_loss.item()/len(recon_loss)}, \
-                    Codebook Loss: {quantize_losses['codebook_loss'].item()/len(quantize_losses['codebook_loss'])},\
-                    Commitment Loss: {quantize_losses['commitment_loss'].item()/len(quantize_losses['commitment_loss'])},\
-                    Loss: {loss.item()/len(loss)}"
+
+            print(
+                f"Epoch: {epoch}, Commitment Loss: {np.mean(commitment_loss)}, Cookbook Loss: {np.mean(cookbook_loss)},recon_loss {recon_loss}"
+            )
+            if epoch % 2 == 0:
+                # save the prediction image
+                torchvision.utils.make_grid(output["decoder_output"]).permute(1, 2, 0)
+                torchvision.utils.save_image(
+                    output["decoder_output"],
+                    f"output_epoch_{epoch}.png",
+                    normalize=True,
+                    
                 )
-                mean_loss = np.mean(losses)
 
-                self.sheduler.step(mean_loss)
+            best_loss = np.inf
+            mean_recon_loss = recon_loss.item()
+            if mean_recon_loss < best_loss:
+                best_loss = mean_recon_loss
+                print(f"Model improved, saving model at {best_loss} loss, epoch {epoch}") 
+                torch.save(self.model.state_dict(), "VQvae_best_model.pth")
+            else:
+                print("Model did not improve")
 
-                inft = np.inf
-                if mean_loss < inft:
-                    inft = mean_loss
-                    torch.save(
-                        self.model.state_dict(),
-                        self.config["model_params"]["model_path"],
-                    )
-                    print("Model saved")
+            self.sheduler.step(mean_recon_loss)
 
 
 if __name__ == "__main__":
+
     from models import VQvae
-    from utils import read_config
 
-    config_dir = r"/home/amzad/Desktop/Vqvae/config/config_v1.yaml"
-    config = read_config(config_dir)
+    conf = {
+        "in_channels": [3, 16, 32, 8, 8],
+        "kernel_size": [3, 3, 3, 2],
+        "kernel_strides": [2, 2, 1, 1],
+        "convbn_blocks": 4,
+        "latent_dim": 8,
+        "transposebn_channels": [8, 8, 32, 16, 3],
+        "transpose_kernel_size": [2, 3, 3, 3],
+        "transpose_kernel_strides": [1, 1, 2, 2],
+        "transpose_bn_blocks": 4,
+        "num_embeddings": 512,
+        "embedding_dim": 8,
+        "commitment_cost": 0.25,
+        "recon_weight": 5,
+        "cookbook_wight": 1,
+        "commitment_weight": 0.2,
+        "crit": "l1",
+        "epochs": 100,
+    }
 
-    # config = {
-    #     'in_channels': [3, 16, 32, 8, 8] ,
-    #     'latent_dim': 64,
-    #     'transposebn_channels': [64, 32, 16, 3],
-    #     'num_embeddings': 512,
-    #     'embedding_dim': 64,
-    #     'epochs': 100,
-    #     'train_params': {
-    #         'reconstruction_loss_weight': 1,
-    #         'codebook_loss_weight': 0.25,
-    #         'commitment_loss_weight': 0.25,
-    #         'save_training_image': True
-    #     },
-    #     'model_params': {
-    #         'model_path': 'model.pth'
-    #     }
-    # }
-
-    model = VQvae(config)
-
-    trainer = Trainer(config, model, train_loader=train_loader)
+    model = VQvae(config=conf).to("cuda")
+    trainer = Trainer(config=conf, model=model, train_loader=train_loader)
     trainer.trainner()
