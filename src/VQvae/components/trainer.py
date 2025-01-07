@@ -6,11 +6,11 @@ import tqdm
 import numpy as np
 
 
-Dataset_dir: str = r"/home/amzad/Desktop/Vqvae/dataset/"
+Dataset_dir: str = r"/home/amzad/Desktop/Vqvae/dataset/flicker/dataset/"
 
 transform = torchvision.transforms.Compose(
     [
-        torchvision.transforms.Resize((31, 31)),
+        torchvision.transforms.Resize((63, 63)),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
@@ -61,9 +61,6 @@ class Trainer:
                 commitment_loss.append(output["comitment"].item())
                 cookbook_loss.append(output["cookbook"].item())
                 recon.append(recon_loss.item())
-                
-                #
-
 
 
                 loss.backward()
@@ -72,12 +69,13 @@ class Trainer:
             print(
                 f"Epoch: {epoch}, Commitment Loss: {np.mean(commitment_loss)}, Cookbook Loss: {np.mean(cookbook_loss)},recon_loss {recon_loss}"
             )
-            if epoch % 2 == 0:
+            if epoch % 10 == 0:
                 # save the prediction image
                 torchvision.utils.make_grid(output["decoder_output"]).permute(1, 2, 0)
                 torchvision.utils.save_image(
                     output["decoder_output"],
                     f"fig/output_epoch_{epoch}.png",
+                    nrow=2,
                     normalize=True,
                     
                 )
