@@ -47,6 +47,6 @@ Provide an overview of the dataset used for training and evaluation. Include det
 
 ## Results
 Summarize the results obtained from the implementation. Include metrics such as reconstruction error, sample images, and any other relevant performance indicators.
-
+![alt text](fig/output_epoch_6.png)
 ## Deployment
 Explain how to deploy the model for inference. Include instructions for setting up the environment, loading the trained model, and running inference on new data.
