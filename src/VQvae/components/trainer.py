@@ -6,11 +6,11 @@ import tqdm
 import numpy as np
 
 
-Dataset_dir: str = r"/home/amzad/Desktop/Vqvae/dataset/flicker/dataset/"
+Dataset_dir: str = r"/home/amzad/Downloads/celb_face/img_align_celeba/"
 
 transform = torchvision.transforms.Compose(
     [
-        torchvision.transforms.Resize((63, 63)),
+        torchvision.transforms.Resize((159, 159)),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
@@ -20,7 +20,7 @@ transform = torchvision.transforms.Compose(
 train_dataset = torchvision.datasets.ImageFolder(root=Dataset_dir, transform=transform)
 
 train_loader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=64, num_workers=4, shuffle=True
+    train_dataset, batch_size=200, num_workers=4, shuffle=True
 )
 
 
@@ -67,25 +67,30 @@ class Trainer:
                 self.optimizer.step()
 
             print(
-                f"Epoch: {epoch}, Commitment Loss: {np.mean(commitment_loss)}, Cookbook Loss: {np.mean(cookbook_loss)},recon_loss {recon_loss}"
+                f"Epoch: {epoch}, total_loss : {np.round(loss.item(),2)},Commitment Loss: {np.mean(commitment_loss)}, Cookbook Loss: {np.mean(cookbook_loss)},recon_loss {recon_loss}"
             )
-            if epoch % 10 == 0:
-                # save the prediction image
-                torchvision.utils.make_grid(output["decoder_output"]).permute(1, 2, 0)
+            mean = 0.5
+            std = 0.5
+            if epoch % 2 == 0:
+                
+                # de normalize the image 
+                output["decoder_output"] = output["decoder_output"] * std + mean
+                images = images * std + mean
+                # save the input image
                 torchvision.utils.save_image(
                     output["decoder_output"],
-                    f"fig/output_epoch_{epoch}.png",
-                    nrow=2,
-                    normalize=True,
-                    
+                    f"fig/input_epoch_{epoch}.png",
+                    nrow=10,
+                    normalize=False,
                 )
 
             best_loss = np.inf
-            mean_recon_loss = recon_loss.item()
+            mean_recon_loss = np.mean(recon_loss.item())
             if mean_recon_loss < best_loss:
+                print(f'previous best loss {best_loss} current loss {mean_recon_loss}')
                 best_loss = mean_recon_loss
                 print(f"Model improved, saving model at {best_loss} loss, epoch {epoch}") 
-                torch.save(self.model.state_dict(), "VQvae_best_model.pth")
+                torch.save(self.model.state_dict(), "artifacts/model_ckpt/VQvae_best_model.pth")
             else:
                 print("Model did not improve")
 
@@ -112,8 +117,8 @@ if __name__ == "__main__":
         "recon_weight": 5,
         "cookbook_wight": 1,
         "commitment_weight": 0.2,
-        "crit": "l1",
-        "epochs": 100,
+        "crit": "l2",
+        "epochs": 50,
     }
 
     model = VQvae(config=conf).to("cuda")
